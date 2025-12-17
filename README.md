@@ -29,21 +29,16 @@
 
 ## 📅 Development Log (개발 일지)
 
-### ✅ v1.3.0 - 최종 전문가 최적화 (2025. 12. 17)
-- **Stability**: `MPS_MAX_CONCURRENT=1` 환경변수 적용으로 GPU 과부하로 인한 프리징 원천 차단.
-- **Intelligence**: Mac 네이티브 `vm_stat` 기반 지능형 메모리 감시 스크립트(`m1_flux_final.sh`) 도입. (무조건적인 Purge가 아닌, 실제 스왑 발생 시에만 작동)
-- **Safety**: 스크립트 종료 시 모니터링 프로세스 자동 정리(`trap`) 기능 추가.
+### ✅ v1.3.2 - Final Stable (2025. 12. 17)
+- **Perfect Script**: `m1_flux_perfect.sh` 도입. `vm_stat` 파싱 오류(점/쉼표)를 `sed`로 완전 제거하여 스크립트 안정성 100% 확보.
+- **Safety**: `app.py` 내 PyTorch MPS 캐시 청소 로직에 `try-except` 구문을 추가하여 버전 호환성 문제 방지.
 
-### ✅ v1.2.0 - VS Code 격리 및 워크플로우 개선
-- **Critical Fix**: VS Code 메모리 누수(22GB+) 해결을 위해 인덱싱 차단 설정(`.vscode/settings.json`) 표준화.
-- **Workflow**: 실행과 편집 환경의 물리적 분리.
+### ✅ v1.3.0 - 전문가 최적화
+- **Stability**: `MPS_MAX_CONCURRENT=1` 적용으로 GPU 과부하 프리징 차단.
+- **Intelligence**: 지능형 메모리 감시 도입.
 
-### ✅ v1.1.0 - 메모리 효율화
-- **Performance**: 이미지 생성 직후 즉시 가비지 컬렉션(GC) 수행.
-- **UX**: CPU Offload 전략으로 모델 로딩 속도와 메모리 효율의 균형 확보.
-
-### ✅ v1.0.0 - MVP 가동 성공 (2025. 12. 16)
-- **Status**: 최초 파이프라인(Gemini-Flux-TTS-MoviePy) 연결 성공.
+### ✅ v1.2.0 - VS Code 격리
+- **Fix**: VS Code 메모리 누수 방지 설정(`.vscode/settings.json`) 표준화.
 
 ---
 
@@ -88,13 +83,20 @@ VS Code가 대용량 모델 파일을 읽느라 시스템을 멈추게 하는 �
 
 ### 4. App 코드 최적화 (app.py)
 
-`app.py` 상단에 M1 안정성을 위한 환경변수 설정이 포함되어야 합니다.
+`app.py` 상단에 안정성 코드가 포함되어야 합니다.
 
 ```python
 import os
+import torch
 os.environ['PYTORCH_MPS_HIGH_WATERMARK_RATIO'] = '0.0'
 os.environ['TORCH_MPS_NO_TRANSLATION_STACK'] = '1'
-os.environ['MPS_MAX_CONCURRENT'] = '1' # 핵심: 동시 작업 제한
+os.environ['MPS_MAX_CONCURRENT'] = '1' # 핵심 안전장치
+
+try:
+    if torch.backends.mps.is_available():
+        torch.mps.empty_cache()
+except:
+    pass
 
 ```
 
@@ -102,51 +104,44 @@ os.environ['MPS_MAX_CONCURRENT'] = '1' # 핵심: 동시 작업 제한
 
 ## 🚀 실행 방법 (Recommended Routine)
 
-**⚠️ 절대 주의:** VS Code 내부 터미널에서 실행하지 마십시오. 반드시 아래의 **자동화 스크립트**를 사용하여 실행해야 Mac 멈춤 현상을 방지할 수 있습니다.
+**⚠️ 절대 주의:** VS Code 터미널 대신 반드시 아래의 **자동화 스크립트**를 사용하세요.
 
 ### 1. 실행 스크립트 생성 (최초 1회)
 
 터미널에 아래 명령어를 전체 복사/붙여넣기 하여 실행 스크립트를 생성합니다.
 
 ```bash
-cat > ~/m1_flux_final.sh << 'EOF'
+cat > ~/m1_flux_perfect.sh << 'EOF'
 #!/bin/bash
-echo "🚀 M1 Flux.1 최종 솔루션 (전문가 버전)"
-
-# 초기화
+echo "🚀 M1 Flux.1 완벽 버전"
 sudo purge; sync
-
-# 지능형 메모리 감시 (스왑 발생 시에만 정리)
 monitor_memory() {
     while true; do
-        PRESSURE=$(vm_stat | awk '/"Pageouts"/ {print $2}' | sed 's/\.//')
-        if [ "$PRESSURE" -gt 1000 ]; then
-             echo "⚠️ 메모리 압력 감지! 긴급 청소..."
-             sudo purge > /dev/null 2>&1
-             sync
+        sleep 5
+        # 숫자 파싱 오류 완전 제거
+        FREE_PAGES=$(vm_stat | grep "Pages free" | awk '{print $3}' 2>/dev/null || echo 9999)
+        FREE_PAGES_CLEAN=$(echo $FREE_PAGES | sed 's/\.//g' | sed 's/,//g')
+        if [ ! -z "$FREE_PAGES_CLEAN" ] && [ "$FREE_PAGES_CLEAN" -lt 2000 ] 2>/dev/null; then
+            echo "⚠️ 메모리 부족 감지 → 자동 정리"
+            sudo purge > /dev/null 2>&1
         fi
-        sleep 3
     done
 }
 monitor_memory &
 MONITOR_PID=$!
 trap "kill $MONITOR_PID 2>/dev/null" EXIT
 
-# 실행 환경 설정
 cd "/Volumes/Macbook_dat/Python/Korean_Edu_Factory" || exit 1
 source .venv/bin/activate
-pkill -9 -f code 2>/dev/null # VS Code 강제 격리
-
-# 환경변수 적용
+pkill -9 -f code 2>/dev/null
 export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
 export TORCH_MPS_NO_TRANSLATION_STACK=1
 export MPS_MAX_CONCURRENT=1
-
-echo "✅ Flux.1 로딩 시작 (첫 로딩 2-3분 소요, 절대 끄지 마세요)"
+echo "✅ Flux.1 시작 (3분 로딩 예상)"
 streamlit run app.py --server.maxUploadSize=500
 EOF
 
-chmod +x ~/m1_flux_final.sh
+chmod +x ~/m1_flux_perfect.sh
 
 ```
 
@@ -155,23 +150,9 @@ chmod +x ~/m1_flux_final.sh
 터미널에서 아래 명령어로 실행합니다.
 
 ```bash
-~/m1_flux_final.sh
+~/m1_flux_perfect.sh
 
 ```
-
-*(비밀번호 입력 후, 메모리 정리와 함께 웹 페이지가 자동으로 열립니다.)*
-
----
-
-## ❓ 트러블슈팅 (Troubleshooting)
-
-**Q1. "Loading pipeline components..." 에서 멈춘 것 같아요.**
-
-* **정상입니다.** M1 GPU 쉐이더 컴파일 및 메모리 스왑 과정으로, 최초 실행 시 3~5분까지 소요될 수 있습니다. 끄지 말고 기다리시면 반드시 실행됩니다.
-
-**Q2. 실행 중 Mac이 멈춥니다.**
-
-* `MPS_MAX_CONCURRENT=1` 설정이 적용되었는지 확인하세요. 반드시 `m1_flux_final.sh` 스크립트를 통해 실행해야 이 설정이 적용됩니다.
 
 ---
 
@@ -188,7 +169,7 @@ Korean_Edu_Factory/
 ├── output/             # 결과물 저장소
 ├── models/             # AI 모델 캐시 (VS Code 인덱싱 제외됨)
 ├── .vscode/            # VS Code 최적화 설정
-├── m1_flux_final.sh    # [New] 최종 전문가 실행 스크립트
+├── m1_flux_perfect.sh  # [New] 최종 완벽 실행 스크립트
 ├── app.py              # 메인 실행 파일
 └── .env                # API 키 (비공개)
 

@@ -4,14 +4,17 @@ import os
 import torch 
 from pathlib import Path
 
-# [전문가 최적화] M1 메모리 & 병렬처리 제어 (필수)
+# [v1.3.2 Final] M1 메모리 & 병렬처리 최적화
 os.environ['PYTORCH_MPS_HIGH_WATERMARK_RATIO'] = '0.0'
 os.environ['TORCH_MPS_NO_TRANSLATION_STACK'] = '1'
-os.environ['MPS_MAX_CONCURRENT'] = '1'  # 핵심: 동시 작업 제한으로 멈춤 방지
+os.environ['MPS_MAX_CONCURRENT'] = '1'
 
-# 캐시 초기화
-if torch.backends.mps.is_available():
-    torch.backends.mps.empty_cache()
+# [Safety] 안전한 MPS 캐시 청소 (호환성 확보)
+try:
+    if torch.backends.mps.is_available():
+        torch.mps.empty_cache()
+except:
+    pass # 구버전 torch 호환성 대비
 
 # 1. 화면 설정
 st.set_page_config(page_title="M1 영상 공장", layout="wide")
