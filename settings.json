@@ -1,0 +1,18 @@
+{
+    "files.watcherExclude": {
+        "**/.git/**": true,
+        "**/node_modules/**": true,
+        "**/.venv/**": true,
+        "**/models/**": true,
+        "**/output/**": true
+    },
+    "search.exclude": {
+        "**/models": true,
+        "**/.venv": true,
+        "**/output": true
+    },
+    "search.followSymlinks": false,
+    "python.analysis.indexing": false,
+    "python.analysis.typeCheckingMode": "off",
+    "extensions.ignoreRecommendations": true
+}
