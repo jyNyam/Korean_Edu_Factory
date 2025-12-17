@@ -1,46 +1,62 @@
-import torch
-from diffusers import FluxPipeline
+# src/visual.py
+import time
 import logging
-import gc
 from config import *
+
+# [최종 수정] grep으로 찾아낸 '진짜 주소' 2곳을 정확히 입력했습니다.
+# 1. Flux1 모델 위치
+from mflux.models.flux.variants.txt2img.flux import Flux1
+# 2. Config 설정 위치
+from mflux.models.common.config.config import Config
 
 logging.basicConfig(filename=LOGS_DIR / 'visual.log', level=logging.INFO)
 
 class VisualEngine:
     def __init__(self):
-        self.pipe = None 
+        self.flux = None
 
     def load_model(self):
-        # 모델이 없을 때만 로드 (최초 1회만 실행됨 -> 지연 시간 제거)
-        if not self.pipe:
-            self.pipe = FluxPipeline.from_pretrained(
-                FLUX_MODEL, 
-                torch_dtype=torch.bfloat16, 
-                cache_dir=MODELS_DIR
+        if self.flux:
+            return
+
+        print("⏳ Apple MLX 엔진 가동 (Path Fixed)")
+        try:
+            # quantize=4: M1 16GB 맥북 생존 필수 옵션
+            self.flux = Flux1.from_alias(
+                alias="schnell", 
+                quantize=4
             )
-            # [핵심] CPU Offloading: 모델을 끄지 않고 RAM으로 내려둠 (속도 빠름 + 메모리 절약)
-            self.pipe.enable_model_cpu_offload()
+            print("✅ 모델 로드 성공! (모든 주소 확인 완료)")
+        except Exception as e:
+            print(f"❌ 모델 로드 실패: {e}")
+            logging.error(f"모델 로드 에러: {e}")
+            raise e
 
     def generate_image(self, prompt, path):
         self.load_model()
         try:
-            # 이미지 생성
-            img = self.pipe(
-                prompt, 
-                height=IMAGE_SIZE, 
-                width=IMAGE_SIZE, 
-                num_inference_steps=4, 
-                guidance_scale=0.0
-            ).images[0]
-            img.save(path)
+            print(f"🎨 이미지 생성 시작: {prompt[:30]}...")
             
-            # [강화된 청소] 이미지 객체만 삭제하여 스왑 방지
-            del img
-            gc.collect()
-            if torch.backends.mps.is_available():
-                torch.mps.empty_cache()
+            # MLX 방식 이미지 생성
+            image = self.flux.generate_image(
+                seed=int(time.time()),
+                prompt=prompt,
+                config=Config(
+                    num_inference_steps=2, # Schnell 모델은 2스텝 (빠름)
+                    height=IMAGE_SIZE,
+                    width=IMAGE_SIZE,
+                )
+            )
             
+            # 저장
+            image.save(path=path)
+            print(f"✨ 저장 완료: {path}")
             return str(path)
+
         except Exception as e:
-            logging.error(f"이미지 실패: {e}")
+            logging.error(f"이미지 생성 실패: {e}")
+            print(f"❌ 생성 실패: {e}")
             return None
+        
+    def unload_model(self):
+        self.flux = None

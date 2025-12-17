@@ -1,0 +1,7 @@
+ERROR:root:기획 실패: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+ERROR:root:기획 실패: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+ERROR:root:기획 실패: 404 models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+ERROR:root:이미지 실패: MPS backend out of memory (MPS allocated: 20.07 GiB, other allocations: 736.00 KiB, max allowed: 20.13 GiB). Tried to allocate 72.00 MiB on private pool. Use PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0 to disable upper limit for memory allocations (may cause system failure).
+ERROR:root:자막 실패: [Errno 2] No such file or directory: '/Volumes/Macbook_dat/Python/Korean_Edu_Factory/output/images/대중교통_1.png'
+ERROR:root:편집 실패: No such file: '/Volumes/Macbook_dat/Python/Korean_Edu_Factory/output/images/대중교통_1.png'
+ERROR:root:이미지 실패: MPS backend out of memory (MPS allocated: 20.07 GiB, other allocations: 736.00 KiB, max allowed: 20.13 GiB). Tried to allocate 72.00 MiB on private pool. Use PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0 to disable upper limit for memory allocations (may cause system failure).

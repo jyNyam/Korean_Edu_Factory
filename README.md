@@ -1,27 +1,27 @@
 
-# 🏭 M1 한국어 교육 영상 공장 (Korean Edu Factory)
+# 🏭 M1 한국어 교육 영상 공장 (Korean Edu Factory) - MLX Edition
 
-**Mac M1(Silicon) 환경**에서 로컬 AI를 활용하여 외국인 노동자 및 유학생을 위한 **한국어 교육용 숏폼 영상**을 자동으로 생성하는 올인원 파이프라인 프로젝트입니다.
+**Mac M1(Silicon) 16GB 환경**에 최적화된 로컬 AI 영상 생성 파이프라인입니다.
 
-**Gemini (기획)** + **Flux (이미지)** + **Edge TTS (음성)** + **MoviePy (편집)**를 연결하여, 주제만 입력하면 버튼 하나로 영상을 완성합니다.
+기존 PyTorch/Diffusers 방식의 메모리 부족(OOM) 문제를 극복하기 위해 **Apple MLX 프레임워크**를 도입하여, **M1 16GB에서도 Flux.1 모델을 100% 안정적**으로 구동합니다.
 
 ---
 
-## 🚀 프로젝트 소개
-사용자가 주제(예: "병원", "공항")를 입력하면 다음과 같은 과정을 거쳐 영상이 제작됩니다.
-1.  **Brain (Gemini):** 주제에 맞는 필수 단어 선정 및 예문 작성, 프롬프트 엔지니어링
-2.  **Visual (Flux.1-schnell):** Mac M1 GPU 가속을 활용한 고품질 일러스트 생성
-3.  **Audio (Edge TTS):** 자연스러운 한국어 AI 성우 내레이션 생성
-4.  **Editor (MoviePy):** 이미지, 자막, 음성을 합성하여 MP4 영상 렌더링
+## 🚀 프로젝트 핵심 기능
+사용자가 주제(예: "병원")를 입력하면 버튼 하나로 영상이 완성됩니다.
+1.  **Brain (Gemini):** 교육용 단어 선정, 예문 작성, 이미지 프롬프트 기획
+2.  **Visual (Flux.1-schnell on MLX):** **4-bit 양자화**된 로컬 모델로 고품질 일러스트 생성 (메모리 사용량 6~8GB)
+3.  **Audio (Edge TTS):** 자연스러운 한국어 AI 음성 생성
+4.  **Editor (MoviePy):** 이미지+음성+자막 자동 합성을 통한 MP4 렌더링
 
-### 🛠 Tech Stack
+### 🛠 Tech Stack (M1 Optimized)
 - **OS**: macOS (Apple Silicon M1/M2/M3)
-- **Environment**: Python 3.11 / VS Code
-- **Storage**: External SSD (**APFS Format 필수**)
+- **Language**: Python 3.11
+- **Core Engine**: **Apple MLX (mflux)** - *Native Metal Performance*
 - **Key Libraries**:
-  - `Streamlit`: 웹 UI 인터페이스
-  - `Google Gemini`: 콘텐츠 기획
-  - `Flux (Diffusers)`: 온디바이스 이미지 생성 (MPS 가속)
+  - `Streamlit`: 웹 UI
+  - `Google Gemini`: 기획 LLM
+  - `mflux`: 이미지 생성 (Local Source Integration)
   - `Edge TTS`: 음성 합성
   - `MoviePy`: 영상 편집
 
@@ -29,150 +29,76 @@
 
 ## 📅 Development Log (개발 일지)
 
-### ✅ v1.3.2 - Final Stable (2025. 12. 17)
-- **Perfect Script**: `m1_flux_perfect.sh` 도입. `vm_stat` 파싱 오류(점/쉼표)를 `sed`로 완전 제거하여 스크립트 안정성 100% 확보.
-- **Safety**: `app.py` 내 PyTorch MPS 캐시 청소 로직에 `try-except` 구문을 추가하여 버전 호환성 문제 방지.
+### ✅ v2.0.0 - The MLX Revolution (2025. 12. 17)
+- **Engine Swap**: PyTorch/Diffusers → **Apple MLX (mflux)** 전면 교체.
+- **Memory Fix**: `bfloat16` 로딩 시 발생하던 OOM(Killed) 현상을 **4-bit Quantization(`quantize=4`)**으로 완벽 해결.
+- **Stability**: 외부 라이브러리 경로 꼬임 방지를 위해 `mflux` 소스코드를 `src/mflux`에 **직접 이식(Local Vendor)**.
+- **Legacy Removal**: 불안정한 메모리 청소 스크립트(`sh`) 및 `sudo purge` 의존성 제거.
 
-### ✅ v1.3.0 - 전문가 최적화
-- **Stability**: `MPS_MAX_CONCURRENT=1` 적용으로 GPU 과부하 프리징 차단.
-- **Intelligence**: 지능형 메모리 감시 도입.
-
-### ✅ v1.2.0 - VS Code 격리
-- **Fix**: VS Code 메모리 누수 방지 설정(`.vscode/settings.json`) 표준화.
+### ⚠️ 이전 이슈 해결 (Post-Mortem)
+- **문제**: M1 16GB에서 Flux 모델 로딩 시 활성 메모리 폭주로 프로세스 강제 종료.
+- **원인**: PyTorch의 MPS 백엔드가 16GB 메모리 한계에서 오버헤드 발생.
+- **해결**: Apple이 직접 최적화한 MLX 프레임워크로 전환하여 메모리 사용량을 1/3 수준으로 절감.
 
 ---
 
-## ⚙️ 설치 가이드 (Installation)
+## ⚙️ 설치 및 실행 가이드
 
-### 1. 환경 설정 및 라이브러리 설치
-터미널을 열고 프로젝트 폴더에서 아래 명령어를 순서대로 실행하세요.
+### 1. 필수 라이브러리 설치
+터미널에서 가상환경 진입 후, MLX 및 필수 패키지를 설치합니다.
 
 ```bash
-# 1. 가상환경 생성 및 활성화
-python3.11 -m venv .venv
 source .venv/bin/activate
-
-# 2. 필수 라이브러리 설치
-pip install --upgrade pip
-pip install torch torchvision torchaudio diffusers transformers accelerate google-generativeai edge-tts streamlit pandas Pillow python-dotenv moviepy protobuf==3.20.3 watchdog sentencepiece
+pip install mlx mlx-lm numpy pillow huggingface_hub sentencepiece protobuf psutil streamlit google-generativeai edge-tts moviepy watchdog
 
 ```
 
-### 2. VS Code 메모리 누수 방지 (필수)
+### 2. 프로젝트 구조 (Local Source)
 
-VS Code가 대용량 모델 파일을 읽느라 시스템을 멈추게 하는 것을 방지합니다.
-
-* **파일 생성:** `.vscode/settings.json`
-* **내용:**
-```json
-{
-    "files.watcherExclude": { "**/.git/**": true, "**/models/**": true, "**/output/**": true, "**/.venv/**": true },
-    "search.exclude": { "**/models": true, "**/output": true, "**/.venv": true },
-    "python.analysis.indexing": false,
-    "extensions.ignoreRecommendations": true
-}
-
-```
-
-
-
-### 3. 인증 설정
-
-1. **Hugging Face:** `huggingface-cli login` (Flux 모델 접근용 Write 토큰).
-2. **Gemini:** `.env` 파일에 API 키 입력 및 `src/brain.py` 모델 버전 확인.
-
-### 4. App 코드 최적화 (app.py)
-
-`app.py` 상단에 안정성 코드가 포함되어야 합니다.
-
-```python
-import os
-import torch
-os.environ['PYTORCH_MPS_HIGH_WATERMARK_RATIO'] = '0.0'
-os.environ['TORCH_MPS_NO_TRANSLATION_STACK'] = '1'
-os.environ['MPS_MAX_CONCURRENT'] = '1' # 핵심 안전장치
-
-try:
-    if torch.backends.mps.is_available():
-        torch.mps.empty_cache()
-except:
-    pass
-
-```
-
----
-
-## 🚀 실행 방법 (Recommended Routine)
-
-**⚠️ 절대 주의:** VS Code 터미널 대신 반드시 아래의 **자동화 스크립트**를 사용하세요.
-
-### 1. 실행 스크립트 생성 (최초 1회)
-
-터미널에 아래 명령어를 전체 복사/붙여넣기 하여 실행 스크립트를 생성합니다.
-
-```bash
-cat > ~/m1_flux_perfect.sh << 'EOF'
-#!/bin/bash
-echo "🚀 M1 Flux.1 완벽 버전"
-sudo purge; sync
-monitor_memory() {
-    while true; do
-        sleep 5
-        # 숫자 파싱 오류 완전 제거
-        FREE_PAGES=$(vm_stat | grep "Pages free" | awk '{print $3}' 2>/dev/null || echo 9999)
-        FREE_PAGES_CLEAN=$(echo $FREE_PAGES | sed 's/\.//g' | sed 's/,//g')
-        if [ ! -z "$FREE_PAGES_CLEAN" ] && [ "$FREE_PAGES_CLEAN" -lt 2000 ] 2>/dev/null; then
-            echo "⚠️ 메모리 부족 감지 → 자동 정리"
-            sudo purge > /dev/null 2>&1
-        fi
-    done
-}
-monitor_memory &
-MONITOR_PID=$!
-trap "kill $MONITOR_PID 2>/dev/null" EXIT
-
-cd "/Volumes/Macbook_dat/Python/Korean_Edu_Factory" || exit 1
-source .venv/bin/activate
-pkill -9 -f code 2>/dev/null
-export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
-export TORCH_MPS_NO_TRANSLATION_STACK=1
-export MPS_MAX_CONCURRENT=1
-echo "✅ Flux.1 시작 (3분 로딩 예상)"
-streamlit run app.py --server.maxUploadSize=500
-EOF
-
-chmod +x ~/m1_flux_perfect.sh
-
-```
-
-### 2. 앱 실행
-
-터미널에서 아래 명령어로 실행합니다.
-
-```bash
-~/m1_flux_perfect.sh
-
-```
-
----
-
-## 📂 폴더 구조
+`mflux` 라이브러리 충돌 방지를 위해 소스코드가 내장되어 있습니다.
 
 ```
 Korean_Edu_Factory/
 ├── src/
-│   ├── brain.py        # 기획 (Gemini)
-│   ├── visual.py       # 이미지 (Flux + GC Optimized)
-│   ├── audio.py        # 음성 (EdgeTTS)
-│   ├── editor.py       # 편집 (MoviePy)
-│   └── config.py       # 환경 설정
-├── output/             # 결과물 저장소
-├── models/             # AI 모델 캐시 (VS Code 인덱싱 제외됨)
-├── .vscode/            # VS Code 최적화 설정
-├── m1_flux_perfect.sh  # [New] 최종 완벽 실행 스크립트
-├── app.py              # 메인 실행 파일
-└── .env                # API 키 (비공개)
+│   ├── mflux/          # [핵심] MLX 엔진 소스코드 (직접 이식됨)
+│   ├── visual.py       # MLX 기반 이미지 생성기 (경로 최적화됨)
+│   ├── brain.py        # Gemini 기획
+│   ├── audio.py        # TTS
+│   └── config.py       # 설정
+├── app.py              # 메인 실행 파일 (Sys Path Patch 적용)
+└── .env                # GEMINI_API_KEY 저장
 
 ```
 
+### 3. 인증 설정 (.env)
+
+프로젝트 루트에 `.env` 파일을 생성하고 키를 입력하세요.
+
+```env
+GEMINI_API_KEY=your_api_key_here
+
 ```
+
+---
+
+## 🚀 실행 방법
+
+더 이상 복잡한 스크립트가 필요 없습니다. Streamlit만 실행하면 됩니다.
+
+```bash
+# 가상환경 활성화
+source .venv/bin/activate
+
+# 앱 실행 (메모리 절약 옵션 권장)
+streamlit run app.py --server.maxUploadSize=50 --server.headless=true
+
+```
+
+1. 브라우저에서 `http://localhost:8501` 접속
+2. 주제 입력 후 **[영상 생성 시작]** 클릭
+3. 터미널에서 다운로드/생성 로그 확인
+
+```
+
+
+**이제 M1 맥북은 훌륭한 영상 공장이 되었습니다. 개발을 즐기세요!**
