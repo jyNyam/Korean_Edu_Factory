@@ -63,4 +63,19 @@ Korean_Edu_Factory/
 └── .env                # API 키 (비공개)
 
 
+# 🏭 Mac M1 한국어 교육 영상 공장 (Korean_Edu_Factory)
 
+## 🛠️ 필수 설정 가이드 (설치 후 최초 1회)
+
+### 1. Hugging Face 토큰 설정 (이미지 생성용)
+이 프로젝트는 고성능 이미지 모델인 **Flux.1-schnell**을 사용합니다. 이 모델을 다운로드하려면 승인된 토큰이 필요합니다.
+
+1. [Hugging Face](https://huggingface.co/join) 회원가입.
+2. [Flux.1-schnell 모델 페이지](https://huggingface.co/black-forest-labs/FLUX.1-schnell) 접속 후 **"Agree and access repository"** 버튼 클릭 (필수).
+3. [Settings > Access Tokens](https://huggingface.co/settings/tokens)에서 `Write` 권한으로 새 토큰 발급.
+4. 터미널에서 로그인:
+   ```bash
+   huggingface-cli login
+
+
+   

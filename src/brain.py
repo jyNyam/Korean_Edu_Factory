@@ -11,7 +11,8 @@ class BrainEngine:
     def __init__(self):
         # 엔진 시동: 제미나이 연결
         genai.configure(api_key=GEMINI_API_KEY)
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        # 권장: 가장 최신 플래시 모델 별칭 사용
+        self.model = genai.GenerativeModel('gemini-2.5-flash')
 
     def _clean_json(self, text):
         # AI가 가끔 ```json ... ``` 이런 기호를 붙여서 주는데, 그걸 떼어내는 함수입니다.
