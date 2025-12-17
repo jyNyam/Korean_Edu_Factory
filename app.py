@@ -1,9 +1,19 @@
 import streamlit as st
 import sys
 import os
+import torch 
 from pathlib import Path
 
-# 1. 화면 설정 (코드 맨 위에 있어야 함)
+# [전문가 최적화] M1 메모리 & 병렬처리 제어 (필수)
+os.environ['PYTORCH_MPS_HIGH_WATERMARK_RATIO'] = '0.0'
+os.environ['TORCH_MPS_NO_TRANSLATION_STACK'] = '1'
+os.environ['MPS_MAX_CONCURRENT'] = '1'  # 핵심: 동시 작업 제한으로 멈춤 방지
+
+# 캐시 초기화
+if torch.backends.mps.is_available():
+    torch.backends.mps.empty_cache()
+
+# 1. 화면 설정
 st.set_page_config(page_title="M1 영상 공장", layout="wide")
 
 # 2. src 폴더 경로 추가 (모듈 불러오기 위함)

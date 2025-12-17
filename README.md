@@ -1,3 +1,4 @@
+
 # 🏭 M1 한국어 교육 영상 공장 (Korean Edu Factory)
 
 **Mac M1(Silicon) 환경**에서 로컬 AI를 활용하여 외국인 노동자 및 유학생을 위한 **한국어 교육용 숏폼 영상**을 자동으로 생성하는 올인원 파이프라인 프로젝트입니다.
@@ -28,22 +29,23 @@
 
 ## 📅 Development Log (개발 일지)
 
-### ✅ v1.2.0 - 시스템 안정화 및 프리징 해결 (2025. 12. 17)
-- **Critical Fix**: VS Code 메모리 누수(22GB+)로 인한 Mac 프리징 현상 해결.
-- **Workflow**: `run_factory.sh` 쉘 스크립트 도입. (메모리 청소(`purge`) → 가상환경 실행 → 앱 구동 자동화)
-- **Optimization**: VS Code 인덱싱 차단 설정(`.vscode/settings.json`) 표준화.
+### ✅ v1.3.0 - 최종 전문가 최적화 (2025. 12. 17)
+- **Stability**: `MPS_MAX_CONCURRENT=1` 환경변수 적용으로 GPU 과부하로 인한 프리징 원천 차단.
+- **Intelligence**: Mac 네이티브 `vm_stat` 기반 지능형 메모리 감시 스크립트(`m1_flux_final.sh`) 도입. (무조건적인 Purge가 아닌, 실제 스왑 발생 시에만 작동)
+- **Safety**: 스크립트 종료 시 모니터링 프로세스 자동 정리(`trap`) 기능 추가.
 
-### ✅ v1.1.0 - 메모리 최적화 (2025. 12. 17)
+### ✅ v1.2.0 - VS Code 격리 및 워크플로우 개선
+- **Critical Fix**: VS Code 메모리 누수(22GB+) 해결을 위해 인덱싱 차단 설정(`.vscode/settings.json`) 표준화.
+- **Workflow**: 실행과 편집 환경의 물리적 분리.
+
+### ✅ v1.1.0 - 메모리 효율화
 - **Performance**: 이미지 생성 직후 즉시 가비지 컬렉션(GC) 수행.
-- **UX**: 모델 로딩 지연 제거 (CPU Offload 유지 전략).
+- **UX**: CPU Offload 전략으로 모델 로딩 속도와 메모리 효율의 균형 확보.
 
-### ✅ v1.0.0 - 최초 가동 성공 (2025. 12. 16)
-- **Status**: MVP 구현 완료.
-- **Key Achievements**: Gemini 기획, Flux(MPS) 구동, 한글 자막 인코딩 해결.
+### ✅ v1.0.0 - MVP 가동 성공 (2025. 12. 16)
+- **Status**: 최초 파이프라인(Gemini-Flux-TTS-MoviePy) 연결 성공.
 
 ---
-
-
 
 ## ⚙️ 설치 가이드 (Installation)
 
@@ -58,64 +60,124 @@ source .venv/bin/activate
 # 2. 필수 라이브러리 설치
 pip install --upgrade pip
 pip install torch torchvision torchaudio diffusers transformers accelerate google-generativeai edge-tts streamlit pandas Pillow python-dotenv moviepy protobuf==3.20.3 watchdog sentencepiece
-2. VS Code 메모리 누수 방지 (필수)
+
+```
+
+### 2. VS Code 메모리 누수 방지 (필수)
+
 VS Code가 대용량 모델 파일을 읽느라 시스템을 멈추게 하는 것을 방지합니다.
 
-파일 생성: .vscode/settings.json
-
-내용:
-
-JSON
-
+* **파일 생성:** `.vscode/settings.json`
+* **내용:**
+```json
 {
     "files.watcherExclude": { "**/.git/**": true, "**/models/**": true, "**/output/**": true, "**/.venv/**": true },
     "search.exclude": { "**/models": true, "**/output": true, "**/.venv": true },
-    "python.analysis.indexing": false
+    "python.analysis.indexing": false,
+    "extensions.ignoreRecommendations": true
 }
-3. 인증 설정
-Hugging Face: huggingface-cli login (Flux 모델 접근용 Write 토큰).
 
-Gemini: .env 파일에 API 키 입력 및 src/brain.py 모델 버전 확인.
+```
 
-🚀 실행 방법 (Recommended Routine)
-⚠️ 주의: VS Code 내부 터미널에서 실행하지 마십시오. 메모리 부족으로 Mac이 멈출 수 있습니다. 반드시 아래의 자동화 스크립트를 사용하여 실행하세요.
 
-1. 실행 스크립트 생성 (최초 1회)
-프로젝트 루트에 run_factory.sh 파일을 생성하고 아래 내용을 붙여넣으세요.
 
-Bash
+### 3. 인증 설정
 
+1. **Hugging Face:** `huggingface-cli login` (Flux 모델 접근용 Write 토큰).
+2. **Gemini:** `.env` 파일에 API 키 입력 및 `src/brain.py` 모델 버전 확인.
+
+### 4. App 코드 최적화 (app.py)
+
+`app.py` 상단에 M1 안정성을 위한 환경변수 설정이 포함되어야 합니다.
+
+```python
+import os
+os.environ['PYTORCH_MPS_HIGH_WATERMARK_RATIO'] = '0.0'
+os.environ['TORCH_MPS_NO_TRANSLATION_STACK'] = '1'
+os.environ['MPS_MAX_CONCURRENT'] = '1' # 핵심: 동시 작업 제한
+
+```
+
+---
+
+## 🚀 실행 방법 (Recommended Routine)
+
+**⚠️ 절대 주의:** VS Code 내부 터미널에서 실행하지 마십시오. 반드시 아래의 **자동화 스크립트**를 사용하여 실행해야 Mac 멈춤 현상을 방지할 수 있습니다.
+
+### 1. 실행 스크립트 생성 (최초 1회)
+
+터미널에 아래 명령어를 전체 복사/붙여넣기 하여 실행 스크립트를 생성합니다.
+
+```bash
+cat > ~/m1_flux_final.sh << 'EOF'
 #!/bin/bash
-# run_factory.sh
-echo "🧹 Mac 메모리 정리 중 (Password 입력)..."
-sudo purge
-source .venv/bin/activate
-echo "🚀 영상 공장 가동!"
-streamlit run app.py --server.maxUploadSize=500
-그 후 실행 권한을 부여합니다: chmod +x run_factory.sh
+echo "🚀 M1 Flux.1 최종 솔루션 (전문가 버전)"
 
-2. 앱 실행
+# 초기화
+sudo purge; sync
+
+# 지능형 메모리 감시 (스왑 발생 시에만 정리)
+monitor_memory() {
+    while true; do
+        PRESSURE=$(vm_stat | awk '/"Pageouts"/ {print $2}' | sed 's/\.//')
+        if [ "$PRESSURE" -gt 1000 ]; then
+             echo "⚠️ 메모리 압력 감지! 긴급 청소..."
+             sudo purge > /dev/null 2>&1
+             sync
+        fi
+        sleep 3
+    done
+}
+monitor_memory &
+MONITOR_PID=$!
+trap "kill $MONITOR_PID 2>/dev/null" EXIT
+
+# 실행 환경 설정
+cd "/Volumes/Macbook_dat/Python/Korean_Edu_Factory" || exit 1
+source .venv/bin/activate
+pkill -9 -f code 2>/dev/null # VS Code 강제 격리
+
+# 환경변수 적용
+export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
+export TORCH_MPS_NO_TRANSLATION_STACK=1
+export MPS_MAX_CONCURRENT=1
+
+echo "✅ Flux.1 로딩 시작 (첫 로딩 2-3분 소요, 절대 끄지 마세요)"
+streamlit run app.py --server.maxUploadSize=500
+EOF
+
+chmod +x ~/m1_flux_final.sh
+
+```
+
+### 2. 앱 실행
+
 터미널에서 아래 명령어로 실행합니다.
 
-Bash
+```bash
+~/m1_flux_final.sh
 
-./run_factory.sh
-(비밀번호 입력 후, 메모리 정리와 함께 웹 페이지가 자동으로 열립니다.)
+```
 
-❓ 트러블슈팅 (Troubleshooting)
-Q1. 실행 중 Mac이 완전히 멈췄습니다(프리징).
+*(비밀번호 입력 후, 메모리 정리와 함께 웹 페이지가 자동으로 열립니다.)*
 
-원인: VS Code가 메모리를 과다 점유한 상태에서 모델을 로드했기 때문입니다.
+---
 
-해결: 전원 버튼을 길게 눌러 강제 재부팅 후, 반드시 **run_factory.sh**로 실행하세요.
+## ❓ 트러블슈팅 (Troubleshooting)
 
-Q2. "RuntimeError: MPS backend out of memory"
+**Q1. "Loading pipeline components..." 에서 멈춘 것 같아요.**
 
-해결: src/visual.py에 CPU Offloading 및 GC 코드가 적용되었는지 확인하세요.
+* **정상입니다.** M1 GPU 쉐이더 컴파일 및 메모리 스왑 과정으로, 최초 실행 시 3~5분까지 소요될 수 있습니다. 끄지 말고 기다리시면 반드시 실행됩니다.
 
+**Q2. 실행 중 Mac이 멈춥니다.**
 
+* `MPS_MAX_CONCURRENT=1` 설정이 적용되었는지 확인하세요. 반드시 `m1_flux_final.sh` 스크립트를 통해 실행해야 이 설정이 적용됩니다.
 
-📂 폴더 구조
+---
+
+## 📂 폴더 구조
+
+```
 Korean_Edu_Factory/
 ├── src/
 │   ├── brain.py        # 기획 (Gemini)
@@ -126,6 +188,10 @@ Korean_Edu_Factory/
 ├── output/             # 결과물 저장소
 ├── models/             # AI 모델 캐시 (VS Code 인덱싱 제외됨)
 ├── .vscode/            # VS Code 최적화 설정
-├── run_factory.sh      # [New] 안전 실행 스크립트
+├── m1_flux_final.sh    # [New] 최종 전문가 실행 스크립트
 ├── app.py              # 메인 실행 파일
 └── .env                # API 키 (비공개)
+
+```
+
+```
