@@ -17,8 +17,8 @@ class VisualEngine:
                 FLUX_MODEL, 
                 torch_dtype=torch.bfloat16, 
                 cache_dir=MODELS_DIR
-            ).to("mps") # Mac M1 GPU 가속 사용
-            self.pipe.enable_attention_slicing()
+            )
+            self.pipe.enable_model_cpu_offload()
 
     def generate_image(self, prompt, path):
         self.load_model()
